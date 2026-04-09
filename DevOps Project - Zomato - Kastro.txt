@@ -1,7 +1,7 @@
-DevOps Project - Dr. Kastro Kiran
+DevOps Project - Poojitha
 Deployment of ZOMATO Project - DevSecOps Approach
 --------------------------------------------
-Repo URL: https://github.com/KastroVKiran/DevOps-Project-Zomato-Kastro.git
+Repo URL: https://github.com/Pooji2121/zomato-clone-app-deployment.git
 
 
 1. Launch an Instance (Ubuntu, 24.04, t2.large, 30 GB)
