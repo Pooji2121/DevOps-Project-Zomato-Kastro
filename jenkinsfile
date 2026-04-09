@@ -11,7 +11,7 @@ pipeline {
     }
 
     stages {
-        stage('clean workspace') {
+        stage('Clean Workspace') {
             steps {
                 cleanWs()
             }
@@ -19,23 +19,23 @@ pipeline {
 
         stage('Git Checkout') {
             steps {
-                git 'https://github.com/Pooji2121/DevOps-Project-Zomato-Kastro.git'
+                git 'https://github.com/Pooji2121/zomato-clone-app-deployment.git'
             }
         }
 
-        stage('Sonarqube Analysis') {
+        stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar-server') {
                     sh '''
                         $SCANNER_HOME/bin/sonar-scanner \
-                        -Dsonar.projectName=zomato \
-                        -Dsonar.projectKey=zomato
+                        -Dsonar.projectName=zomato-app \
+                        -Dsonar.projectKey=zomato-app
                     '''
                 }
             }
         }
 
-        stage('Code Quality Gate') {
+        stage('Quality Gate') {
             steps {
                 script {
                     waitForQualityGate abortPipeline: false
@@ -43,54 +43,47 @@ pipeline {
             }
         }
 
-        stage('Install NPM Dependencies') {
+        stage('Install Dependencies') {
             steps {
                 sh 'npm install'
             }
         }
 
-        stage('OWASP FS SCAN') {
+        stage('Security Scan (Trivy)') {
             steps {
-                echo 'Skipping OWASP scan for faster pipeline build'
-            }
-        }
-
-        stage('Trivy File Scan') {
-            steps {
-                sh 'trivy fs . > trivy.txt'
+                sh 'trivy fs . > trivy-report.txt'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t zomato .'
+                sh 'docker build -t pooji09/zomato-app .'
             }
         }
 
-        stage('Tag & Push to DockerHub') {
+        stage('Push to DockerHub') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker') {
-                        sh 'docker tag zomato pooji09/zomato:latest'
-                        sh 'docker push pooji09/zomato:latest'
+                        sh 'docker push pooji09/zomato-app:latest'
                     }
                 }
             }
         }
 
-        stage('Docker Scout Image') {
+        stage('Docker Scout Analysis') {
             steps {
-                sh 'docker scout quickview pooji09/zomato:latest || true'
-                sh 'docker scout cves pooji09/zomato:latest || true'
-                sh 'docker scout recommendations pooji09/zomato:latest || true'
+                sh 'docker scout quickview pooji09/zomato-app:latest || true'
+                sh 'docker scout cves pooji09/zomato-app:latest || true'
+                sh 'docker scout recommendations pooji09/zomato-app:latest || true'
             }
         }
 
-        stage('Deploy to Container') {
+        stage('Deploy Container') {
             steps {
                 sh '''
-                    docker rm -f zomato || true
-                    docker run -d --name zomato -p 3000:3000 pooji09/zomato:latest
+                    docker rm -f zomato-app || true
+                    docker run -d --name zomato-app -p 3000:3000 pooji09/zomato-app:latest
                 '''
             }
         }
@@ -99,25 +92,20 @@ pipeline {
     post {
         always {
             emailext attachLog: true,
-                subject: "'${currentBuild.result}'",
+                subject: "Build Status: ${currentBuild.result}",
                 body: """
                     <html>
                     <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: white; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: white; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
-                        <div style="background-color: #87CEEB; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: white; font-weight: bold;">URL: ${env.BUILD_URL}</p>
-                        </div>
+                        <h3>DevOps Pipeline Notification</h3>
+                        <p><b>Project:</b> ${env.JOB_NAME}</p>
+                        <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>Build URL:</b> ${env.BUILD_URL}</p>
                     </body>
                     </html>
                 """,
                 to: 'poojinuthalapati09@gmail.com',
                 mimeType: 'text/html',
-                attachmentsPattern: 'trivy.txt'
+                attachmentsPattern: 'trivy-report.txt'
         }
     }
 }
